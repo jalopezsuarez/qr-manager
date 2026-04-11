@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirigiendo...</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center px-4">
+
+  <div id="status" class="text-center">
+    <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p id="status-text" class="text-gray-500 text-sm">Redirigiendo...</p>
+  </div>
+
+  <div id="not-found" class="text-center" style="display:none">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-100 mb-4">
+      <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </div>
+    <h1 class="text-xl font-bold text-gray-900 mb-2">Enlace no encontrado</h1>
+    <p class="text-gray-500 text-sm">El codigo QR no existe o ha sido eliminado.</p>
+  </div>
+
+  <script>
+    (async function () {
+      const params = new URLSearchParams(window.location.search);
+      let code, apiUrl;
+
+      // New compressed format: ?q={deployId}{code_8chars}
+      const compressedToken = params.get('q');
+      if (compressedToken) {
+        // Last 8 chars are the short code
+        code = compressedToken.slice(-8);
+        const deployId = compressedToken.slice(0, -8);
+        // Reconstruct full API URL
+        apiUrl = 'https://script.google.com/macros/s/' + deployId + '/exec';
+      } else {
+        // Old format: ?code=X&api=Y (backward compat)
+        code = params.get('code');
+        apiUrl = params.get('api') || localStorage.getItem('gs_api_url');
+      }
+
+      if (!code) { showError(); return; }
+      if (!apiUrl) {
+        document.getElementById('status-text').textContent = 'API no configurada.';
+        return;
+      }
+
+      try {
+        // GET endpoint (no CORS preflight)
+        const url = new URL(apiUrl);
+        url.searchParams.set('action', 'redirect');
+        url.searchParams.set('code', code);
+
+        const res = await fetch(url.toString());
+        const data = await res.json();
+
+        if (data.success && data.target_url) {
+          window.location.href = data.target_url;
+        } else {
+          showError();
+        }
+      } catch (e) {
+        console.error(e);
+        showError();
+      }
+
+      function showError() {
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('not-found').style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>

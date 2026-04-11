@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Loading -->
+  <div id="loading" class="flex items-center justify-center min-h-screen">
+    <div class="text-center">
+      <svg class="animate-spin h-10 w-10 text-indigo-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <p id="loading-text" class="text-gray-500 text-sm">Conectando con Google Sheets...</p>
+    </div>
+  </div>
+
+  <!-- Login -->
+  <div id="view-login" class="flex items-center justify-center min-h-screen px-4" style="display:none">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100 mb-4">
+          <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">QR Manager</h1>
+        <p class="text-gray-500 text-sm mt-1">Gestiona tus codigos QR</p>
+      </div>
+      <form id="login-form" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="login-user">Usuario</label>
+          <input id="login-user" type="text" required autocomplete="username"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="login-pass">Password</label>
+          <input id="login-pass" type="password" required autocomplete="current-password"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+        </div>
+        <p id="login-error" class="text-red-600 text-sm" style="display:none"></p>
+        <button id="btn-login" type="submit"
+          class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+          Entrar
+        </button>
+      </form>
+      <p class="text-center text-xs text-gray-400 mt-4">Usuario por defecto: admin / admin</p>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="view-dashboard" style="display:none">
+    <header class="bg-white border-b border-gray-200">
+      <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+          </div>
+          <h1 class="text-lg font-semibold text-gray-900">QR Manager</h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-500">Hola, <strong id="user-name"></strong></span>
+          <button id="btn-config" title="Configurar API"
+            class="text-gray-400 hover:text-gray-600 p-1.5 rounded-md hover:bg-gray-100 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+          <button id="btn-logout"
+            class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition">
+            Salir
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-semibold text-gray-900">Mis codigos QR</h2>
+        <button id="btn-new-qr"
+          class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Nuevo QR
+        </button>
+      </div>
+      <div id="qr-list" class="space-y-3"></div>
+    </main>
+  </div>
+
+  <!-- Modal: Create/Edit QR -->
+  <div id="qr-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+    <div id="modal-backdrop" class="absolute inset-0 bg-black/40"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+      <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">Nuevo codigo QR</h3>
+      <form id="qr-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="qr-name">Nombre</label>
+          <input id="qr-name" type="text" required placeholder="Mi enlace de ejemplo"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="qr-url">URL destino</label>
+          <input id="qr-url" type="url" required placeholder="https://ejemplo.com"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+        </div>
+        <div class="flex gap-3 justify-end pt-2">
+          <button type="button" id="btn-cancel"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+            Cancelar
+          </button>
+          <button id="btn-save-qr" type="submit"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: QR Detail -->
+  <div id="qr-detail" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+    <div id="detail-backdrop" class="absolute inset-0 bg-black/40"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+      <h3 id="detail-name" class="text-lg font-semibold text-gray-900 mb-1"></h3>
+      <a id="detail-url" href="#" target="_blank" class="text-sm text-indigo-600 hover:underline break-all"></a>
+      <div id="detail-qr" class="flex justify-center my-5"></div>
+      <div class="bg-gray-50 rounded-lg p-3 mb-4">
+        <p class="text-xs text-gray-500 mb-1">Enlace publico de redireccion</p>
+        <p id="detail-redirect" class="text-sm font-mono text-gray-800 break-all select-all"></p>
+        <p class="text-xs text-gray-400 mt-1">Codigo: <span id="detail-code" class="font-mono"></span></p>
+      </div>
+      <div class="flex gap-3 justify-center">
+        <button id="btn-copy-detail"
+          class="px-4 py-2 text-sm font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition">
+          Copiar enlace
+        </button>
+        <button id="btn-close-detail"
+          class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Config API -->
+  <div id="config-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+    <div id="config-backdrop" class="absolute inset-0 bg-black/40"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">Configuracion</h3>
+      <p class="text-sm text-gray-500 mb-4">Conecta la app con tu Google Apps Script.</p>
+      <form id="config-api-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="config-api-url">URL del Apps Script</label>
+          <input id="config-api-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          <p class="text-xs text-gray-400 mt-1">La URL que obtienes al desplegar el Apps Script como Web App.</p>
+        </div>
+        <div class="flex gap-3 justify-end pt-2">
+          <button type="button" id="btn-config-cancel"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+            Cancelar
+          </button>
+          <button type="submit"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+            Guardar y conectar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/qr.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
