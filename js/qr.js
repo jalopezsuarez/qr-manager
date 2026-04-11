@@ -53,7 +53,17 @@ const QR_CRUD = {
   },
 
   redirectUrl(shortCode) {
-    const baseUrl = (DB._cachedBaseUrl || window.location.origin).replace(/\/+$/, '');
+    let baseUrl = DB._cachedBaseUrl || window.location.origin;
+
+    // Handle GitHub Pages: if pathname is /repo-name/..., include it
+    if (window.location.pathname && window.location.pathname !== '/') {
+      const path = window.location.pathname.replace(/\/$/, '').split('/')[1]; // get /repo-name
+      if (path && !baseUrl.includes(path)) {
+        baseUrl = baseUrl + '/' + path;
+      }
+    }
+
+    baseUrl = baseUrl.replace(/\/+$/, '');
     const deployId = DB.deployId();
 
     // New compressed format: ?q={deployId}{code}
