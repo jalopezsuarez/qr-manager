@@ -81,7 +81,6 @@ function doPost(e) {
 
   const { action } = body;
 
-  if (action === 'seed_user')       return seedUser(body);
   if (action === 'login')           return login(body);
   if (action === 'list_qr')         return listQR(body);
   if (action === 'get_qr')          return getQR(body);
@@ -97,7 +96,7 @@ function doPost(e) {
 
 // ── Auth ──────────────────────────────────────────
 
-function seedUser(body) {
+function login(body) {
   const { username, password_hash } = body;
   if (!username || !password_hash) return err('missing fields');
 
@@ -105,31 +104,19 @@ function seedUser(body) {
   const rows = sheetData('users');
   const existing = rows.find(r => r.username === username);
 
-  if (existing) {
-    // Update hash if not a valid SHA-256 (covers pending_seed, fnv_ format, etc.)
-    const isSHA256 = /^[0-9a-f]{64}$/.test(String(existing.password_hash));
-    if (!isSHA256) {
-      const rowIdx = rows.indexOf(existing) + 2; // +2: 1 header + 1-indexed
-      s.getRange(rowIdx, 3).setValue(password_hash);
-      s.getRange(rowIdx, 4).setValue(now());
-    }
-    return json({ success: true, seeded: false });
+  if (!existing) {
+    // Auto-register: create user if doesn't exist
+    const id = nextId('users');
+    s.appendRow([id, username, password_hash, now()]);
+    return json({ success: true, user: { id, username }, created: true });
   }
 
-  const id = nextId('users');
-  s.appendRow([id, username, password_hash, now()]);
-  return json({ success: true, seeded: true });
-}
+  // Validate password
+  if (String(existing.password_hash) !== String(password_hash)) {
+    return json({ success: false, error: 'invalid credentials' });
+  }
 
-function login(body) {
-  const { username, password_hash } = body;
-  if (!username || !password_hash) return err('missing fields');
-
-  const rows = sheetData('users');
-  const user = rows.find(r => r.username === username && r.password_hash === password_hash);
-  if (!user) return json({ success: false, error: 'invalid credentials' });
-
-  return json({ success: true, user: { id: user.id, username: user.username } });
+  return json({ success: true, user: { id: existing.id, username: existing.username }, created: false });
 }
 
 // ── QR CRUD ───────────────────────────────────────

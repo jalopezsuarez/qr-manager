@@ -1,44 +1,50 @@
 # CODER MEMORY INDEX
-> Updated: 2026-04-12 00:15
-> Agent: v0.202604112034
+> Updated: 2026-04-12
 > Project: coder-agent-test (QR Manager)
 
 ## TECH STACK
-JavaScript(vanilla)|ES2020+|jQuery 3.7.1|none(CDN)|SQLite(sql.js 1.8.0 WASM)|IndexedDB
-TailwindCSS 3.x (CDN play)|qrcodejs 1.0.0 (CDN)|Web Crypto API (SHA-256)
-Zero build — all CDN, static files only, no backend
+JavaScript(vanilla)|ES2020+|jQuery 3.7.1|none(CDN)|Google Sheets(backend)|Google Apps Script(API)
+TailwindCSS 3.x (CDN play)|qrcodejs 1.0.0 (CDN)|Web Crypto API (SHA-256 only)
+Zero build — all CDN, static files only, serverless backend
 
 ## STRUCTURE
 coder-agent-test/
-├── index.html               → SPA principal (login+dashboard+modals) 189L
+├── index.html               → SPA principal (login+dashboard+modals)
 ├── js/
-│   ├── db.js                → sql.js+IndexedDB persistence layer 140L
-│   ├── auth.js              → Login/logout, SHA-256+FNV fallback 44L
-│   ├── qr.js                → CRUD QR codes, short_code gen 63L
-│   └── app.js               → SPA controller, events, render 226L
-├── qr/redirect/index.html   → Public redirect page 95L
-├── Coder Factory/            → Agent workspace (memory+board+notes)
-└── templates/                → Task note template
+│   ├── db.js                → Google Apps Script fetch() adapter
+│   ├── auth.js              → Login/logout, SHA-256 hash
+│   ├── qr.js                → CRUD QR codes, short_code gen, compressed URLs
+│   └── app.js               → SPA controller, events, render
+├── qr/redirect/index.html   → Public redirect page (decompresses token)
+├── apps-script/Code.gs      → Google Apps Script API (doGet/doPost)
+├── netlify.toml             → Netlify routing config
+├── SETUP.md                 → Setup guide (Sheets + Netlify Drop)
+├── README.md                → Project documentation
+├── Coder Factory/           → Agent workspace (memory+board+notes)
+└── templates/               → Task note template
 
 ## MODULE REGISTRY
-db|js/db.js|sql.js init, IndexedDB R/W, schema, query/run, settings KV|sql.js,IndexedDB|active
-auth|js/auth.js|hash, login, logout, session (sessionStorage)|db|active
-qr|js/qr.js|CRUD qr_codes, short_code gen, redirect URL build|db|active
-app|js/app.js|SPA bootstrap, jQuery events, view routing, render|db,auth,qr,QRCode|active
-redirect|qr/redirect/index.html|Standalone: load sql.js+IDB, lookup short_code, redirect|sql.js,IndexedDB|active
+db|js/db.js|fetch() adapter: _post/_get to Apps Script, localStorage apiUrl, deployId()|Google Apps Script|active
+auth|js/auth.js|SHA-256 hash, login, logout, session (sessionStorage)|db|active
+qr|js/qr.js|CRUD qr_codes, short_code gen, compressed redirect URL|db|active
+app|js/app.js|SPA bootstrap, jQuery events, view routing, render, config modal|db,auth,qr,QRCode|active
+redirect|qr/redirect/index.html|Standalone: decompress ?q= token, fetch Apps Script, redirect|fetch|active
+api|apps-script/Code.gs|REST API: doGet (redirect, get_setting), doPost (10 actions)|Google Sheets|active
 
 ## ACTIVE DECISIONS
-D001|2026-04-12|Base URL configurable via settings table|URLs were file:// on local, now read from DB.settings('base_url')|hardcoded window.location rejected
-D002|2026-04-11|FNV-1a fallback hash for file://|crypto.subtle unavailable in non-secure contexts|plain-text storage rejected
-D003|2026-04-11|sql.js 1.8.0 via cdnjs|Stability + confirmed CDN availability|newer versions untested on cdnjs
+D001|2026-04-12|Base URL = window.location.origin|Auto-detected on HTTPS static hosting, no manual config|settings table approach rejected (TAREA-004)
+D002|2026-04-12|SHA-256 only (no FNV fallback)|HTTPS guaranteed on static hosting, crypto.subtle always available|FNV-1a removed (TAREA-004)
+D003|2026-04-12|Google Sheets via Apps Script as backend|Centralized data, works from any device, no server needed|sql.js/IndexedDB removed (TAREA-003)
+D004|2026-04-12|Compressed QR URLs: ?q={deployId}{code}|31% shorter URLs, easier QR scanning, API URL stripped to bare deploy ID|full URL in params rejected (TAREA-005)
+D005|2026-04-12|Content-Type: text/plain for POST|Avoids CORS preflight to Apps Script|application/json requires preflight
 
 ## CURRENT STATE
-works: login(admin/admin), CRUD QR, QR image gen, copy URL, redirect page, configurable base URL, IndexedDB persistence
-pending: TAREA-001 testing, TAREA-002 testing
-in-progress: ---
+works: login(admin/admin), CRUD QR, QR image gen, copy URL, compressed redirect, cross-device QR scan, Netlify deploy
+pending: TAREA-006 (embed API URL), TAREA-007 (auto-create user)
+done: TAREA-001, TAREA-002, TAREA-003, TAREA-004, TAREA-005
 
 ## DOMAIN FILES
-architecture.md|architecture & patterns|2026-04-12
+architecture.md|architecture & data flow|2026-04-12
 modules.md|module map & exports|2026-04-12
 conventions.md|code style|2026-04-12
 dependencies.md|CDN packages & scripts|2026-04-12

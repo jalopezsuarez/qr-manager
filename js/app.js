@@ -4,16 +4,7 @@ const App = {
   async bootstrap() {
     $('#loading').show();
     try {
-      DB.init(); // loads apiUrl from localStorage
-
-      if (!DB.hasApiUrl()) {
-        // No API configured yet — show config first
-        $('#loading').hide();
-        this.bindEvents();
-        this.openApiConfig();
-        return;
-      }
-
+      DB.init(); // decode apiUrl from base64
       await this._initApp();
     } catch (err) {
       console.error('Bootstrap error:', err);
@@ -23,10 +14,6 @@ const App = {
 
   async _initApp() {
     try {
-      // Seed admin user
-      const hash = await Auth.hashPassword('admin');
-      await DB.seedIfNeeded(hash);
-
       // Cache base_url for QR redirect links — always correct on HTTPS static hosting
       DB._cachedBaseUrl = window.location.origin;
 
@@ -139,22 +126,6 @@ const App = {
       });
     });
 
-    // Config: API URL
-    $('#btn-config').on('click', () => this.openApiConfig());
-    $('#config-api-form').on('submit', async e => {
-      e.preventDefault();
-      const apiUrl = $('#config-api-url').val().trim();
-      if (!apiUrl) return;
-      DB.setApiUrl(apiUrl);
-      $('#config-modal').hide();
-      if (!Auth.isLoggedIn()) {
-        await this._initApp();
-      } else {
-        await this.renderList();
-      }
-    });
-    $('#btn-config-cancel').on('click', () => $('#config-modal').hide());
-    $('#config-backdrop').on('click', () => $('#config-modal').hide());
   },
 
   showLogin() {
@@ -256,11 +227,6 @@ const App = {
     this.editingId = null;
   },
 
-  openApiConfig() {
-    $('#config-api-url').val(DB.apiUrl || '');
-    $('#config-modal').show();
-    setTimeout(() => $('#config-api-url').focus(), 50);
-  },
 
   esc(str) {
     const d = document.createElement('div');

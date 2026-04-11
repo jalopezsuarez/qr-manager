@@ -1,22 +1,15 @@
 // DB — Google Apps Script backend adapter
-// Same public API as the previous sql.js version.
+// API URL embedded in base64 for zero-config deployment
 
 const DB = {
+  // Base64-encoded API URL (decode via atob())
+  _API_B64: 'aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J5elo4bE1WaDVfdmdpbmtFTnJUV2UzNjUySGt2MnFsNlVMWkhj bDdSNVNQMjBSRFNNTmJvNlhHMzF0WmpjY2tVbm0vZXhlYw==',
+
   apiUrl: null,
 
   init() {
-    const stored = localStorage.getItem('gs_api_url');
-    if (stored) this.apiUrl = stored;
-    // apiUrl can be set later via DB.setApiUrl() from the config modal
-  },
-
-  setApiUrl(url) {
-    this.apiUrl = url.replace(/\/+$/, '');
-    localStorage.setItem('gs_api_url', this.apiUrl);
-  },
-
-  hasApiUrl() {
-    return !!this.apiUrl;
+    // Decode base64 API URL
+    this.apiUrl = atob(this._API_B64);
   },
 
   async _post(body) {
@@ -44,11 +37,6 @@ const DB = {
   // Seed default admin user if not exists
   async seedIfNeeded(passwordHash) {
     await this._post({ action: 'seed_user', username: 'admin', password_hash: passwordHash });
-  },
-
-  async needsSeed() {
-    // Always attempt seed — Apps Script handles dedup
-    return true;
   },
 
   async getSetting(key) {
