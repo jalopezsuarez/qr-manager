@@ -9,6 +9,7 @@ A lightweight, serverless QR code management application. Create, manage, and sh
 - **Serverless** — Deploy once to any static hosting; runs forever via HTTPS.
 - **Login System** — Default admin/admin user, stored securely in Google Sheets.
 - **QR CRUD** — Create, read, update, delete QR codes with custom redirect URLs.
+- **Change Password** — Authenticated users can change their password from the dashboard.
 - **Optimized URLs** — Compressed QR redirect URLs (~31% shorter) for easier scanning.
 - **Mobile-Friendly** — Public redirect page works on any device without prior configuration.
 - **Backward Compatible** — Old QR formats still work alongside new compressed format.
@@ -137,6 +138,13 @@ https://your-domain.com/r?q=DEPLOY_ID+SHORT_CODE
 ```
 
 This URL works on **any device** without prior configuration. Scan it → redirects to your target URL.
+
+### Change Password
+
+1. Login with your credentials
+2. Click **Cambiar contraseña** in the header
+3. Enter your current password, new password, and confirm the new password
+4. Click **Guardar**
 
 ### Edit or Delete
 
