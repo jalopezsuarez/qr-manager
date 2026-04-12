@@ -1,4 +1,0 @@
-[[redirects]]
-  from = "/qr/redirect"
-  to = "/qr/redirect/index.html"
-  status = 200

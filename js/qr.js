@@ -68,12 +68,12 @@ const QR_CRUD = {
 
     // New compressed format: ?q={deployId}{code}
     if (deployId) {
-      return baseUrl + '/qr/redirect?q=' + deployId + shortCode;
+      return baseUrl + '/r?q=' + deployId + shortCode;
     }
 
     // Fallback to old format if deployId not available
     const params = new URLSearchParams({ code: shortCode });
     if (DB.apiUrl) params.set('api', DB.apiUrl);
-    return baseUrl + '/qr/redirect?' + params.toString();
+    return baseUrl + '/r?' + params.toString();
   }
 };

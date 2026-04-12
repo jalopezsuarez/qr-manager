@@ -90,6 +90,7 @@ function doPost(e) {
   if (action === 'delete_qr')       return deleteQR(body);
   if (action === 'get_setting')     return getSetting(body);
   if (action === 'set_setting')     return setSetting(body);
+  if (action === 'change_password') return changePassword(body);
 
   return err('unknown action: ' + action);
 }
@@ -194,6 +195,25 @@ function deleteQR(body) {
   if (idx === -1) return err('not found');
 
   s.deleteRow(idx + 2);
+  return json({ success: true });
+}
+
+// ── Change Password ──────────────────────────────
+
+function changePassword(body) {
+  const { user_id, old_password_hash, new_password_hash } = body;
+  if (!user_id || !old_password_hash || !new_password_hash) return err('missing fields');
+
+  const s = sheet('users');
+  const rows = sheetData('users');
+  const idx = rows.findIndex(r => String(r.id) === String(user_id));
+  if (idx === -1) return err('user not found');
+
+  if (String(rows[idx].password_hash) !== String(old_password_hash)) {
+    return err('invalid current password');
+  }
+
+  s.getRange(idx + 2, 3).setValue(new_password_hash);
   return json({ success: true });
 }
 

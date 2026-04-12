@@ -28,5 +28,18 @@ const Auth = {
 
   isLoggedIn() {
     return !!this.currentUser();
+  },
+
+  async changePassword(userId, oldPassword, newPassword) {
+    const old_password_hash = await this.hashPassword(oldPassword);
+    const new_password_hash = await this.hashPassword(newPassword);
+    const data = await DB._post({
+      action: 'change_password',
+      user_id: userId,
+      old_password_hash,
+      new_password_hash
+    });
+    if (!data.success) throw new Error(data.error);
+    return data;
   }
 };

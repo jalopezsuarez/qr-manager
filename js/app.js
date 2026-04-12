@@ -116,6 +116,49 @@ const App = {
       });
     });
 
+    // Change password
+    $('#btn-change-pw').on('click', () => {
+      $('#pw-current, #pw-new, #pw-confirm').val('');
+      $('#pw-error, #pw-success').hide();
+      $('#btn-save-pw').prop('disabled', false).text('Guardar');
+      $('#password-modal').show();
+      setTimeout(() => $('#pw-current').focus(), 50);
+    });
+
+    $('#password-form').on('submit', async e => {
+      e.preventDefault();
+      const current = $('#pw-current').val();
+      const newPw = $('#pw-new').val();
+      const confirm = $('#pw-confirm').val();
+      $('#pw-error, #pw-success').hide();
+
+      if (!newPw) {
+        $('#pw-error').text('La nueva contraseña no puede estar vacia').show();
+        return;
+      }
+      if (newPw !== confirm) {
+        $('#pw-error').text('Las contraseñas nuevas no coinciden').show();
+        return;
+      }
+
+      const $btn = $('#btn-save-pw').prop('disabled', true).text('Guardando...');
+      try {
+        const user = Auth.currentUser();
+        await Auth.changePassword(user.id, current, newPw);
+        $('#pw-success').text('Contraseña actualizada correctamente').show();
+        setTimeout(() => $('#password-modal').hide(), 1500);
+      } catch (err) {
+        const msg = err.message === 'invalid current password'
+          ? 'La contraseña actual es incorrecta'
+          : 'Error: ' + err.message;
+        $('#pw-error').text(msg).show();
+      } finally {
+        $btn.prop('disabled', false).text('Guardar');
+      }
+    });
+
+    $('#btn-cancel-pw, #password-backdrop').on('click', () => $('#password-modal').hide());
+
     // QR detail copy
     $('#btn-copy-detail').on('click', function () {
       const url = $('#detail-redirect').text();
