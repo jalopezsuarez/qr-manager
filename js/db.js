@@ -3,7 +3,7 @@
 
 const DB = {
   // Base64-encoded API URL (decode via atob())
-  _API_B64: 'aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4ZTRYLTNPejY0LVpBdVdLNUNXT0lVRVNqRVpxYTNCMElPRG1oYm0zLWptc2JDZjhXRTRiZm1vdUtSc19LZEdCRzgvZXhlYw==',
+  _API_B64: 'aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J6VU1mZHlnSm90QzljUDJ2QW9kamh3UENSMWw3M3BvQlNhLXg4OEFsZkplQmd5QzFZWWVOWnl0TWdoaWRZS2lJYTkvZXhlYw==',
 
   apiUrl: null,
 
@@ -50,6 +50,26 @@ const DB = {
 
   async setSetting(key, value) {
     await this._post({ action: 'set_setting', key, value });
+  },
+
+  // Folders
+  async listFolders(userId) {
+    const data = await this._post({ action: 'list_folders', user_id: userId });
+    return data.items || [];
+  },
+
+  async createFolder(userId, name) {
+    const data = await this._post({ action: 'create_folder', user_id: userId, name });
+    return data.item;
+  },
+
+  async updateFolder(id, name) {
+    const data = await this._post({ action: 'update_folder', id, name });
+    return data.item;
+  },
+
+  async deleteFolder(id) {
+    await this._post({ action: 'delete_folder', id });
   },
 
   deployId() {

@@ -7,13 +7,56 @@ const SS = SpreadsheetApp.getActiveSpreadsheet();
 // ── Helpers ──────────────────────────────────────
 
 function sheet(name) {
-  return SS.getSheetByName(name);
+  let s = SS.getSheetByName(name);
+  if (!s) {
+    s = SS.insertSheet(name);
+    if (name === 'folders') {
+      s.appendRow(['id', 'user_id', 'name', 'created_at']);
+    }
+  }
+  return s;
 }
 
 function sheetData(name) {
   const s = sheet(name);
-  const rows = s.getDataRange().getValues();
-  const headers = rows[0];
+  let rows = s.getDataRange().getValues();
+  let headers = rows[0];
+
+  // Ensure schema consistency
+  if (name === 'qr_codes') {
+    let modified = false;
+    let expiresIdx = headers.indexOf('expires_at');
+    if (expiresIdx === -1) {
+      expiresIdx = 7; // Column H
+      s.getRange(1, expiresIdx + 1).setValue('expires_at');
+      modified = true;
+    }
+    let folderIdx = headers.indexOf('folder_id');
+    if (folderIdx === -1) {
+      folderIdx = 8; // Column I
+      s.getRange(1, folderIdx + 1).setValue('folder_id');
+      modified = true;
+    }
+    let maxScansIdx = headers.indexOf('max_scans');
+    if (maxScansIdx === -1) {
+      maxScansIdx = 9; // Column J
+      s.getRange(1, maxScansIdx + 1).setValue('max_scans');
+      modified = true;
+    }
+    let scanCountIdx = headers.indexOf('scan_count');
+    if (scanCountIdx === -1) {
+      scanCountIdx = 10; // Column K
+      s.getRange(1, scanCountIdx + 1).setValue('scan_count');
+      modified = true;
+    }
+    if (modified) {
+      rows = s.getDataRange().getValues();
+      headers = rows[0];
+    }
+  }
+
+  if (rows.length <= 1) return [];
+
   return rows.slice(1).map(row => {
     const obj = {};
     headers.forEach((h, i) => obj[h] = row[i]);
@@ -52,9 +95,38 @@ function doGet(e) {
   if (action === 'redirect') {
     const code = e.parameter.code;
     if (!code) return err('missing code');
+    const s = sheet('qr_codes');
     const rows = sheetData('qr_codes');
-    const row = rows.find(r => r.short_code === code);
-    if (!row || !row.target_url) return err('not found');
+    const idx = rows.findIndex(r => r.short_code === code);
+    if (idx === -1) return err('not found');
+    
+    const row = rows[idx];
+    if (!row.target_url) return err('not found');
+
+    // Check expiration (normalized to end of day)
+    if (row.expires_at) {
+      const expiresDate = new Date(row.expires_at);
+      // Set to 23:59:59 of the expiration day
+      expiresDate.setHours(23, 59, 59, 999);
+      
+      if (new Date() > expiresDate) {
+        return json({ success: false, error: 'expired', message: 'Este código QR ha expirado' });
+      }
+    }
+
+    // Check scan limit
+    if (row.max_scans && Number(row.max_scans) > 0) {
+      const currentScans = Number(row.scan_count || 0);
+      if (currentScans >= Number(row.max_scans)) {
+        return json({ success: false, error: 'limit_reached', message: 'Se ha alcanzado el límite de escaneos para este código' });
+      }
+    }
+
+    // Increment scan count (Column K = 11)
+    const rowIdx = idx + 2;
+    const currentCount = Number(s.getRange(rowIdx, 11).getValue() || 0);
+    s.getRange(rowIdx, 11).setValue(currentCount + 1);
+
     return json({ success: true, target_url: row.target_url });
   }
 
@@ -91,6 +163,12 @@ function doPost(e) {
   if (action === 'get_setting')     return getSetting(body);
   if (action === 'set_setting')     return setSetting(body);
   if (action === 'change_password') return changePassword(body);
+
+  // Folders
+  if (action === 'list_folders')    return listFolders(body);
+  if (action === 'create_folder')   return createFolder(body);
+  if (action === 'update_folder')   return updateFolder(body);
+  if (action === 'delete_folder')   return deleteFolder(body);
 
   return err('unknown action: ' + action);
 }
@@ -157,19 +235,19 @@ function getQRByCode(body) {
 }
 
 function createQR(body) {
-  const { user_id, name, target_url, short_code } = body;
+  const { user_id, name, target_url, short_code, expires_at, folder_id, max_scans } = body;
   if (!user_id || !name || !target_url || !short_code) return err('missing fields');
 
   const s = sheet('qr_codes');
   const id = nextId('qr_codes');
   const ts = now();
-  s.appendRow([id, user_id, name, target_url, short_code, ts, ts]);
+  s.appendRow([id, user_id, name, target_url, short_code, ts, ts, expires_at || '', folder_id || '', max_scans || '', 0]);
 
-  return json({ success: true, item: { id, user_id, name, target_url, short_code, created_at: ts, updated_at: ts } });
+  return json({ success: true, item: { id, user_id, name, target_url, short_code, created_at: ts, updated_at: ts, expires_at: expires_at || null, folder_id: folder_id || null, max_scans: max_scans || null, scan_count: 0 } });
 }
 
 function updateQR(body) {
-  const { id, name, target_url } = body;
+  const { id, name, target_url, expires_at, folder_id, max_scans } = body;
   if (!id || !name || !target_url) return err('missing fields');
 
   const s = sheet('qr_codes');
@@ -181,8 +259,12 @@ function updateQR(body) {
   s.getRange(rowIdx, 3).setValue(name);
   s.getRange(rowIdx, 4).setValue(target_url);
   s.getRange(rowIdx, 7).setValue(now());
+  s.getRange(rowIdx, 8).setValue(expires_at || '');
+  s.getRange(rowIdx, 9).setValue(folder_id || '');
+  s.getRange(rowIdx, 10).setValue(max_scans || '');
 
-  return json({ success: true, item: getQR({ id }).item });
+  const updatedItem = sheetData('qr_codes').find(r => String(r.id) === String(id));
+  return json({ success: true, item: updatedItem });
 }
 
 function deleteQR(body) {
@@ -195,6 +277,65 @@ function deleteQR(body) {
   if (idx === -1) return err('not found');
 
   s.deleteRow(idx + 2);
+  return json({ success: true });
+}
+
+// ── Folder CRUD ───────────────────────────────────
+
+function listFolders(body) {
+  const { user_id } = body;
+  if (!user_id) return err('missing user_id');
+
+  const rows = sheetData('folders');
+  const items = rows.filter(r => String(r.user_id) === String(user_id));
+  return json({ success: true, items });
+}
+
+function createFolder(body) {
+  const { user_id, name } = body;
+  if (!user_id || !name) return err('missing fields');
+
+  const s = sheet('folders');
+  const id = nextId('folders');
+  const ts = now();
+  s.appendRow([id, user_id, name, ts]);
+
+  return json({ success: true, item: { id, user_id, name, created_at: ts } });
+}
+
+function updateFolder(body) {
+  const { id, name } = body;
+  if (!id || !name) return err('missing fields');
+
+  const s = sheet('folders');
+  const rows = sheetData('folders');
+  const idx = rows.findIndex(r => String(r.id) === String(id));
+  if (idx === -1) return err('folder not found');
+
+  s.getRange(idx + 2, 3).setValue(name);
+  return json({ success: true, item: { id, name } });
+}
+
+function deleteFolder(body) {
+  const { id } = body;
+  if (!id) return err('missing id');
+
+  const s = sheet('folders');
+  const rows = sheetData('folders');
+  const idx = rows.findIndex(r => String(r.id) === String(id));
+  if (idx === -1) return err('folder not found');
+
+  s.deleteRow(idx + 2);
+
+  // Unset folder_id for QRs in this folder
+  const qrSheet = sheet('qr_codes');
+  const qrRows = sheetData('qr_codes');
+  qrRows.forEach((r, i) => {
+    if (String(r.folder_id) === String(id)) {
+      qrSheet.getRange(i + 2, 9).setValue('');
+    }
+  });
+
   return json({ success: true });
 }
 

@@ -4,11 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR Manager</title>
+  <script>
+    (function () {
+      try {
+        var storedTheme = localStorage.getItem('qr-manager-theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = storedTheme || (prefersDark ? 'dark' : 'light');
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+      } catch (_) {}
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen text-gray-900 dark:bg-slate-950 dark:text-slate-100">
 
   <!-- Loading -->
   <div id="loading" class="flex items-center justify-center min-h-screen">
@@ -17,107 +30,183 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
       </svg>
-      <p id="loading-text" class="text-gray-500 text-sm">Conectando con Google Sheets...</p>
+      <p id="loading-text" class="text-gray-500 text-sm dark:text-slate-400">Conectando con Google Sheets...</p>
     </div>
   </div>
 
   <!-- Login -->
   <div id="view-login" class="flex items-center justify-center min-h-screen px-4" style="display:none">
-    <div class="w-full max-w-sm">
+    <button type="button"
+      class="btn-theme-toggle fixed top-4 right-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm backdrop-blur hover:bg-white transition dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100 dark:hover:bg-slate-900">
+      <span class="theme-icon" aria-hidden="true"></span>
+      <span class="theme-label hidden sm:inline"></span>
+    </button>
+    <div class="w-full max-sm:max-w-xs max-w-sm">
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100 mb-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100 mb-4 dark:bg-indigo-500/15">
           <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
           </svg>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900">QR Manager</h1>
-        <p class="text-gray-500 text-sm mt-1">Gestiona tus codigos QR</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-slate-100">QR Manager</h1>
+        <p class="text-gray-500 text-sm mt-1 dark:text-slate-400">Gestiona tus codigos QR</p>
       </div>
-      <form id="login-form" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+      <form id="login-form" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4 dark:bg-slate-900 dark:border-slate-800 dark:shadow-none">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="login-user">Usuario</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="login-user">Usuario</label>
           <input id="login-user" type="text" required autocomplete="username"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="login-pass">Password</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="login-pass">Password</label>
           <input id="login-pass" type="password" required autocomplete="current-password"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <p id="login-error" class="text-red-600 text-sm" style="display:none"></p>
         <button id="btn-login" type="submit"
-          class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+          class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
           Entrar
         </button>
       </form>
-      <p class="text-center text-xs text-gray-500 mt-4">Si el usuario no existe, se creara con la contraseña indicada. Si ya existe, se usara la contraseña actual.</p>
+      <div class="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl dark:bg-indigo-500/10 dark:border-indigo-500/20">
+        <p class="text-center text-sm text-indigo-700 leading-relaxed dark:text-indigo-200">
+          <span class="font-bold block mb-1">¿No tienes cuenta?</span>
+          Tu cuenta se creará autoamticamente la primera vez que ingreses con un nuevo usuario.
+        </p>
+      </div>
     </div>
   </div>
 
   <!-- Dashboard -->
   <div id="view-dashboard" style="display:none">
-    <header class="bg-white border-b border-gray-200">
-      <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-10 dark:bg-slate-950/95 dark:border-slate-800 backdrop-blur">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100">
+          <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-500/15">
             <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
             </svg>
           </div>
-          <h1 class="text-lg font-semibold text-gray-900">QR Manager</h1>
+          <h1 class="text-lg font-semibold text-gray-900 dark:text-slate-100">QR Manager</h1>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-sm text-gray-500">Hola, <strong id="user-name"></strong></span>
+          <span class="text-sm text-gray-500 hidden sm:inline dark:text-slate-400">Hola, <strong id="user-name"></strong></span>
+          <button type="button"
+            class="btn-theme-toggle inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800">
+            <span class="theme-icon" aria-hidden="true"></span>
+            <span class="theme-label hidden sm:inline"></span>
+          </button>
           <button id="btn-change-pw"
-            class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition">
-            Cambiar contraseña
+            class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800">
+            <span class="sm:inline hidden">Cambiar contraseña</span>
+            <svg class="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
           </button>
           <button id="btn-logout"
-            class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition">
-            Salir
+            class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800">
+            <span class="sm:inline hidden">Salir</span>
+            <svg class="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </div>
       </div>
     </header>
 
-    <main class="max-w-5xl mx-auto px-4 py-6">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-900">Mis codigos QR</h2>
-        <button id="btn-new-qr"
-          class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          Nuevo QR
-        </button>
+    <main class="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+      <!-- Sidebar / Folders -->
+      <aside class="w-full md:w-64 flex-shrink-0">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider dark:text-slate-400">Carpetas</h2>
+          <button id="btn-new-folder" class="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-indigo-300">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </div>
+        <nav id="folder-list" class="space-y-1">
+          <!-- Folder items -->
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <div class="flex-grow">
+        <div class="flex items-center justify-between mb-6">
+          <h2 id="current-folder-title" class="text-lg font-semibold text-gray-900 dark:text-slate-100">Todos los códigos</h2>
+          <button id="btn-new-qr"
+            class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Nuevo QR
+          </button>
+        </div>
+        <div id="qr-list" class="space-y-3"></div>
       </div>
-      <div id="qr-list" class="space-y-3"></div>
     </main>
   </div>
 
   <!-- Modal: Create/Edit QR -->
   <div id="qr-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
     <div id="modal-backdrop" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-      <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">Nuevo codigo QR</h3>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 dark:bg-slate-900 dark:border dark:border-slate-800 dark:shadow-2xl dark:shadow-black/30">
+      <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4 dark:text-slate-100">Nuevo codigo QR</h3>
       <form id="qr-form" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="qr-name">Nombre</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="qr-name">Nombre</label>
           <input id="qr-name" type="text" required placeholder="Mi enlace de ejemplo"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="qr-url">URL destino</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="qr-url">URL destino</label>
           <input id="qr-url" type="url" required placeholder="https://ejemplo.com"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="qr-folder">Carpeta</label>
+          <select id="qr-folder"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+            <option value="">Sin carpeta</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="qr-max-scans">Límite de escaneos (opcional)</label>
+          <input id="qr-max-scans" type="number" min="0" placeholder="Ej: 100"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="qr-expires">Fecha de expiración (opcional)</label>
+          <input id="qr-expires" type="date"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
         </div>
         <div class="flex gap-3 justify-end pt-2">
           <button type="button" id="btn-cancel"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             Cancelar
           </button>
           <button id="btn-save-qr" type="submit"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Create/Edit Folder -->
+  <div id="folder-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+    <div id="folder-backdrop" class="absolute inset-0 bg-black/40"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6 dark:bg-slate-900 dark:border dark:border-slate-800 dark:shadow-2xl dark:shadow-black/30">
+      <h3 id="folder-modal-title" class="text-lg font-semibold text-gray-900 mb-4 dark:text-slate-100">Nueva carpeta</h3>
+      <form id="folder-form" class="space-y-4">
+        <input type="hidden" id="folder-id">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="folder-name">Nombre</label>
+          <input id="folder-name" type="text" required placeholder="Nombre de la carpeta"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
+        </div>
+        <div class="flex gap-3 justify-end pt-2">
+          <button type="button" id="btn-cancel-folder"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+            Cancelar
+          </button>
+          <button id="btn-save-folder" type="submit"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
             Guardar
           </button>
         </div>
@@ -128,22 +217,26 @@
   <!-- Modal: QR Detail -->
   <div id="qr-detail" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
     <div id="detail-backdrop" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-      <h3 id="detail-name" class="text-lg font-semibold text-gray-900 mb-1"></h3>
-      <a id="detail-url" href="#" target="_blank" class="text-sm text-indigo-600 hover:underline break-all"></a>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center dark:bg-slate-900 dark:border dark:border-slate-800 dark:shadow-2xl dark:shadow-black/30">
+      <h3 id="detail-name" class="text-lg font-semibold text-gray-900 mb-1 dark:text-slate-100"></h3>
+      <a id="detail-url" href="#" target="_blank" class="text-sm text-indigo-600 hover:underline break-all dark:text-indigo-300"></a>
       <div id="detail-qr" class="flex justify-center my-5"></div>
-      <div class="bg-gray-50 rounded-lg p-3 mb-4">
-        <p class="text-xs text-gray-500 mb-1">Enlace publico de redireccion</p>
-        <p id="detail-redirect" class="text-sm font-mono text-gray-800 break-all select-all"></p>
-        <p class="text-xs text-gray-400 mt-1">Codigo: <span id="detail-code" class="font-mono"></span></p>
+      <div class="bg-gray-50 rounded-lg p-3 mb-4 dark:bg-slate-950 dark:border dark:border-slate-800">
+        <p class="text-xs text-gray-500 mb-1 dark:text-slate-400">Enlace publico de redireccion</p>
+        <p id="detail-redirect" class="text-sm font-mono text-gray-800 break-all select-all dark:text-slate-100"></p>
+        <p class="text-xs text-gray-400 mt-1 dark:text-slate-500">Codigo: <span id="detail-code" class="font-mono"></span></p>
       </div>
-      <div class="flex gap-3 justify-center">
+      <div class="flex flex-wrap gap-3 justify-center">
+        <button id="btn-download-svg"
+          class="px-4 py-2 text-sm font-medium bg-sky-50 text-sky-700 rounded-lg hover:bg-sky-100 transition dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20">
+          Descargar SVG
+        </button>
         <button id="btn-copy-detail"
-          class="px-4 py-2 text-sm font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition">
+          class="px-4 py-2 text-sm font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20">
           Copiar enlace
         </button>
         <button id="btn-close-detail"
-          class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+          class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
           Cerrar
         </button>
       </div>
@@ -154,33 +247,33 @@
   <!-- Modal: Change Password -->
   <div id="password-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
     <div id="password-backdrop" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Cambiar contraseña</h3>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 dark:bg-slate-900 dark:border dark:border-slate-800 dark:shadow-2xl dark:shadow-black/30">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4 dark:text-slate-100">Cambiar contraseña</h3>
       <form id="password-form" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="pw-current">Contraseña actual</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="pw-current">Contraseña actual</label>
           <input id="pw-current" type="password" required autocomplete="current-password"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="pw-new">Nueva contraseña</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="pw-new">Nueva contraseña</label>
           <input id="pw-new" type="password" required autocomplete="new-password"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="pw-confirm">Repetir nueva contraseña</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-slate-300" for="pw-confirm">Repetir nueva contraseña</label>
           <input id="pw-confirm" type="password" required autocomplete="new-password"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
         </div>
         <p id="pw-error" class="text-red-600 text-sm" style="display:none"></p>
         <p id="pw-success" class="text-emerald-600 text-sm" style="display:none"></p>
         <div class="flex gap-3 justify-end pt-2">
           <button type="button" id="btn-cancel-pw"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             Cancelar
           </button>
           <button id="btn-save-pw" type="submit"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
             Guardar
           </button>
         </div>
