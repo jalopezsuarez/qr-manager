@@ -22,9 +22,9 @@ const QR_CRUD = {
     return code;
   },
 
-  async create(userId, name, targetUrl, expiresAt = null, folderId = null, maxScans = null) {
+  async create(userId, name, targetUrl, expiresAt = null, folderId = null, maxScans = null, passwordHash = null) {
     const code = await this._uniqueCode();
-    const data = await DB._post({ action: 'create_qr', user_id: userId, name, target_url: targetUrl, short_code: code, expires_at: expiresAt, folder_id: folderId, max_scans: maxScans });
+    const data = await DB._post({ action: 'create_qr', user_id: userId, name, target_url: targetUrl, short_code: code, expires_at: expiresAt, folder_id: folderId, max_scans: maxScans, password_hash: passwordHash });
     return data.item;
   },
 
@@ -43,8 +43,12 @@ const QR_CRUD = {
     return data.item || null;
   },
 
-  async update(id, name, targetUrl, expiresAt = null, folderId = null, maxScans = null) {
-    const data = await DB._post({ action: 'update_qr', id, name, target_url: targetUrl, expires_at: expiresAt, folder_id: folderId, max_scans: maxScans });
+  async update(id, name, targetUrl, expiresAt = null, folderId = null, maxScans = null, passwordHash) {
+    const body = { action: 'update_qr', id, name, target_url: targetUrl, expires_at: expiresAt, folder_id: folderId, max_scans: maxScans };
+    if (passwordHash !== undefined) {
+      body.password_hash = passwordHash;
+    }
+    const data = await DB._post(body);
     return data.item;
   },
 

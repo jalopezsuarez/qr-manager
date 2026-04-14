@@ -3,7 +3,7 @@
 
 const DB = {
   // Base64-encoded API URL (decode via atob())
-  _API_B64: 'aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J6VU1mZHlnSm90QzljUDJ2QW9kamh3UENSMWw3M3BvQlNhLXg4OEFsZkplQmd5QzFZWWVOWnl0TWdoaWRZS2lJYTkvZXhlYw==',
+  _API_B64: 'aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J5dkV0SWxyTEdJWlQzcG5BS3hYS1g3SUFDX0FuaHoxczhJWHB5aW5abkpwU2x3R0dmUmVIZEVPeG1Ic0FmelB4Q0MvZXhlYw==',
 
   apiUrl: null,
 
@@ -70,6 +70,34 @@ const DB = {
 
   async deleteFolder(id) {
     await this._post({ action: 'delete_folder', id });
+  },
+
+  // Analytics
+  async getScanStats(userId, qrId, days) {
+    const body = { action: 'get_scan_stats', user_id: userId };
+    if (qrId) body.qr_id = qrId;
+    if (days) body.days = days;
+    return await this._post(body);
+  },
+
+  async getTopQR(userId, limit) {
+    const data = await this._post({ action: 'get_top_qr', user_id: userId, ...(limit && { limit }) });
+    return data.items || [];
+  },
+
+  async getGeoStats(userId, qrId, days) {
+    const body = { action: 'get_geo_stats', user_id: userId };
+    if (qrId) body.qr_id = qrId;
+    if (days) body.days = days;
+    return await this._post(body);
+  },
+
+  async getScanLogs(userId, qrId, page, perPage) {
+    const body = { action: 'get_scan_logs', user_id: userId };
+    if (qrId) body.qr_id = qrId;
+    if (page) body.page = page;
+    if (perPage) body.per_page = perPage;
+    return await this._post(body);
   },
 
   deployId() {

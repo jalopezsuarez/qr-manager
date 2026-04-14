@@ -1,6 +1,8 @@
 const App = {
   editingId: null,
   currentFolderId: null,
+  currentView: 'qr-list',
+  analyticsDays: 30,
   folders: [],
   themeStorageKey: 'qr-manager-theme',
 
@@ -73,15 +75,26 @@ const App = {
       const expiresAt = $('#qr-expires').val() || null;
       const folderId = $('#qr-folder').val() || null;
       const maxScans = $('#qr-max-scans').val() || null;
-      
+
+      // Password handling
+      let passwordHash;
+      const passwordVal = $('#qr-password').val();
+      const removePassword = $('#qr-remove-password').is(':checked');
+      if (removePassword) {
+        passwordHash = ''; // signal to clear
+      } else if (passwordVal) {
+        passwordHash = await Auth.hashPassword(passwordVal);
+      }
+      // undefined = don't change existing (for edits)
+
       if (!name || !url) return;
       const $btn = $('#btn-save-qr').prop('disabled', true).text('Guardando...');
       try {
         const user = Auth.currentUser();
         if (this.editingId) {
-          await QR_CRUD.update(this.editingId, name, url, expiresAt, folderId, maxScans);
+          await QR_CRUD.update(this.editingId, name, url, expiresAt, folderId, maxScans, passwordHash);
         } else {
-          await QR_CRUD.create(user.id, name, url, expiresAt, folderId, maxScans);
+          await QR_CRUD.create(user.id, name, url, expiresAt, folderId, maxScans, passwordHash || null);
         }
         this.closeModal();
         await this.renderList();
@@ -233,6 +246,28 @@ const App = {
 
     $(document).on('click', '.btn-theme-toggle', () => {
       this.toggleTheme();
+      if (this.currentView === 'analytics') Analytics.reRender();
+    });
+
+    // Tabs
+    $('#dashboard-tabs').on('click', '.tab-btn', e => {
+      const tab = $(e.currentTarget).data('tab');
+      this.switchTab(tab);
+    });
+
+    // Analytics range selector
+    $('#view-analytics').on('click', '.btn-range', async e => {
+      const days = $(e.currentTarget).data('days');
+      this.analyticsDays = days;
+      this._updateRangeButtons();
+      await this.loadAnalytics(days);
+    });
+
+    // Analytics per-QR button
+    $('#qr-list').on('click', '.btn-analytics', async e => {
+      const id = $(e.currentTarget).data('id');
+      this.switchTab('analytics');
+      await this.loadAnalytics(this.analyticsDays, id);
     });
 
     $('#btn-download-svg').on('click', e => {
@@ -272,8 +307,60 @@ const App = {
     $('#view-login').hide();
     $('#view-dashboard').show();
     $('#user-name').text(user.username);
+    this.switchTab('qr-list');
     await this.renderFolders();
     await this.renderList();
+  },
+
+  switchTab(tab) {
+    this.currentView = tab;
+    this._updateTabs();
+    if (tab === 'qr-list') {
+      $('main').show();
+      $('#view-analytics').hide();
+    } else {
+      $('main').hide();
+      $('#view-analytics').show();
+      this._updateRangeButtons();
+      this.showAnalytics();
+    }
+  },
+
+  _updateTabs() {
+    $('.tab-btn').each((_, el) => {
+      const $btn = $(el);
+      const isActive = $btn.data('tab') === this.currentView;
+      $btn.toggleClass('border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-300', isActive);
+      $btn.toggleClass('border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200', !isActive);
+    });
+  },
+
+  _updateRangeButtons() {
+    $('.btn-range').each((_, el) => {
+      const $btn = $(el);
+      const isActive = Number($btn.data('days')) === this.analyticsDays;
+      $btn.toggleClass('bg-indigo-600 text-white dark:bg-indigo-500', isActive);
+      $btn.toggleClass('bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700', !isActive);
+    });
+  },
+
+  async showAnalytics() {
+    await this.loadAnalytics(this.analyticsDays);
+  },
+
+  async loadAnalytics(days, qrId) {
+    const user = Auth.currentUser();
+    $('#analytics-loading').show();
+    $('#analytics-kpis, #chart-line, #chart-pie, #chart-bar, #chart-top, #geo-countries, #geo-cities').empty();
+    $('#analytics-top-section').toggle(!qrId);
+    try {
+      await Analytics.renderAll(user.id, qrId || null, days);
+    } catch (err) {
+      console.error('Analytics error:', err);
+      $('#chart-line').html('<p class="text-sm text-red-500 text-center py-4">Error cargando analiticas</p>');
+    } finally {
+      $('#analytics-loading').hide();
+    }
   },
 
   async renderFolders() {
@@ -357,22 +444,26 @@ const App = {
       items.forEach(item => {
         const rUrl = QR_CRUD.redirectUrl(item.short_code);
         const isExpired = item.expires_at && new Date(item.expires_at).getTime() < new Date().setHours(0,0,0,0);
-        const expLabel = item.expires_at 
-          ? `<p class="text-xs ${isExpired ? 'text-red-500 font-bold dark:text-red-300' : 'text-gray-400 dark:text-slate-500'} mt-1">Expiracion: ${item.expires_at.split('T')[0]}</p>` 
+        const expLabel = item.expires_at
+          ? `<p class="text-xs ${isExpired ? 'text-red-500 font-bold dark:text-red-300' : 'text-gray-400 dark:text-slate-500'} mt-1">Expiracion: ${item.expires_at.split('T')[0]}</p>`
           : '';
 
         const maxScans = Number(item.max_scans || 0);
         const currentScans = Number(item.scan_count || 0);
         const limitReached = maxScans > 0 && currentScans >= maxScans;
-        
+
         let scanLabel = `<p class="text-xs text-gray-400 mt-1 dark:text-slate-500">Escaneos: <span class="font-medium ${limitReached ? 'text-red-500 dark:text-red-300' : 'text-indigo-600 dark:text-indigo-300'}">${currentScans}</span>`;
         if (maxScans > 0) scanLabel += ` / ${maxScans}`;
         scanLabel += '</p>';
 
+        const lockIcon = item.password_hash
+          ? ' <svg class="w-4 h-4 inline-block align-text-bottom text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>'
+          : '';
+
         $list.append(
           '<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center gap-3 dark:bg-slate-900 dark:border-slate-800 dark:shadow-none">' +
             '<div class="flex-1 min-w-0">' +
-              '<h3 class="font-semibold text-gray-900 truncate dark:text-slate-100">' + this.esc(item.name) + '</h3>' +
+              '<h3 class="font-semibold text-gray-900 truncate dark:text-slate-100">' + this.esc(item.name) + lockIcon + '</h3>' +
               '<p class="text-sm text-gray-500 truncate mt-0.5 dark:text-slate-400">' + this.esc(item.target_url) + '</p>' +
               '<p class="text-xs text-gray-400 mt-1 dark:text-slate-500">Codigo: <span class="font-mono">' + item.short_code + '</span></p>' +
               scanLabel +
@@ -380,6 +471,7 @@ const App = {
             '</div>' +
             '<div class="flex flex-wrap gap-2 flex-shrink-0">' +
               '<button class="btn-view px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20" data-id="' + item.id + '">Ver QR</button>' +
+              '<button class="btn-analytics px-3 py-1.5 text-xs font-medium bg-violet-50 text-violet-700 rounded-md hover:bg-violet-100 transition dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20" data-id="' + item.id + '">Analiticas</button>' +
               '<button class="btn-copy px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md hover:bg-emerald-100 transition dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20" data-url="' + this.esc(rUrl) + '">Copiar URL</button>' +
               '<button class="btn-edit px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 transition dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20" data-id="' + item.id + '">Editar</button>' +
               '<button class="btn-delete px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20" data-id="' + item.id + '">Eliminar</button>' +
@@ -413,6 +505,8 @@ const App = {
 
   openModal(id) {
     this.editingId = id || null;
+    $('#qr-password').val('');
+    $('#qr-remove-password').prop('checked', false);
     if (id) {
       QR_CRUD.get(id).then(item => {
         if (!item) return;
@@ -422,6 +516,8 @@ const App = {
         $('#qr-expires').val(item.expires_at ? item.expires_at.split('T')[0] : '');
         $('#qr-folder').val(item.folder_id || '');
         $('#qr-max-scans').val(item.max_scans || '');
+        $('#qr-password').attr('placeholder', item.password_hash ? 'Dejar vacío para mantener la actual' : 'Dejar vacío para acceso libre');
+        $('#qr-password-status').toggle(!!item.password_hash);
       });
     } else {
       $('#modal-title').text('Nuevo codigo QR');
@@ -430,6 +526,8 @@ const App = {
       $('#qr-expires').val('');
       $('#qr-folder').val(this.currentFolderId || '');
       $('#qr-max-scans').val('');
+      $('#qr-password').attr('placeholder', 'Dejar vacío para acceso libre');
+      $('#qr-password-status').hide();
     }
     $('#qr-modal').show();
     setTimeout(() => $('#qr-name').focus(), 50);

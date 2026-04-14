@@ -39,6 +39,27 @@
     <p id="error-msg" class="text-gray-500 text-sm dark:text-slate-400">El codigo QR no existe o ha sido eliminado.</p>
   </div>
 
+  <div id="password-gate" class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-8 py-10 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none" style="display:none">
+    <div class="text-center">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-100 mb-4 dark:bg-amber-500/10">
+        <svg class="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold text-gray-900 mb-2 dark:text-slate-100">Enlace protegido</h1>
+      <p class="text-gray-500 text-sm mb-6 dark:text-slate-400">Este código QR requiere una contraseña para acceder.</p>
+    </div>
+    <form id="pw-form" class="space-y-4">
+      <input id="pw-input" type="password" required placeholder="Contraseña"
+        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500">
+      <p id="pw-error" class="text-red-600 text-sm text-center" style="display:none"></p>
+      <button id="pw-submit" type="submit"
+        class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400">
+        Desbloquear
+      </button>
+    </form>
+  </div>
+
   <script>
     (async function () {
       const params = new URLSearchParams(window.location.search);
@@ -47,16 +68,31 @@
       // New compressed format: ?q={deployId}{code_8chars}
       const compressedToken = params.get('q');
       if (compressedToken) {
-        // Last 8 chars are the short code
         code = compressedToken.slice(-8);
         const deployId = compressedToken.slice(0, -8);
-        // Reconstruct full API URL
         apiUrl = 'https://script.google.com/macros/s/' + deployId + '/exec';
       } else {
         // Old format: ?code=X&api=Y (backward compat)
         code = params.get('code');
         apiUrl = params.get('api');
       }
+
+      // Start geo fetch immediately (2s timeout, non-blocking)
+      var geoData = { country: 'Unknown', city: '', latitude: 0, longitude: 0 };
+      var geoCtrl = new AbortController();
+      var geoTimer = setTimeout(function() { geoCtrl.abort(); }, 2000);
+      var geoPromise = fetch('https://ipwho.is/', { signal: geoCtrl.signal })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.success !== false) {
+            geoData.country = d.country || 'Unknown';
+            geoData.city = d.city || '';
+            geoData.latitude = d.latitude || 0;
+            geoData.longitude = d.longitude || 0;
+          }
+        })
+        .catch(function() {})
+        .finally(function() { clearTimeout(geoTimer); });
 
       if (!code) { showError(); return; }
       if (!apiUrl) {
@@ -65,19 +101,33 @@
       }
 
       try {
-        // GET endpoint (no CORS preflight)
+        await geoPromise;
+
         const url = new URL(apiUrl);
         url.searchParams.set('action', 'redirect');
         url.searchParams.set('code', code);
+        url.searchParams.set('ua', encodeURIComponent(navigator.userAgent));
+        url.searchParams.set('ref', encodeURIComponent(document.referrer || ''));
+        url.searchParams.set('country', encodeURIComponent(geoData.country));
+        url.searchParams.set('city', encodeURIComponent(geoData.city));
+        url.searchParams.set('lat', String(geoData.latitude));
+        url.searchParams.set('lon', String(geoData.longitude));
 
         const res = await fetch(url.toString());
         const data = await res.json();
+
+        if (data.success && data.password_protected) {
+          showPasswordGate();
+          return;
+        }
 
         if (data.success && data.target_url) {
           window.location.href = data.target_url;
         } else {
           if (data.error === 'expired') {
             showError('Código expirado', 'Este código QR ha caducado y ya no está disponible.');
+          } else if (data.error === 'limit_reached') {
+            showError('Límite alcanzado', 'Se ha alcanzado el límite de escaneos para este código.');
           } else {
             showError();
           }
@@ -85,6 +135,64 @@
       } catch (e) {
         console.error(e);
         showError();
+      }
+
+      function showPasswordGate() {
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('password-gate').style.display = 'block';
+        document.getElementById('pw-input').focus();
+
+        document.getElementById('pw-form').addEventListener('submit', async function (e) {
+          e.preventDefault();
+          var pw = document.getElementById('pw-input').value;
+          if (!pw) return;
+
+          var pwError = document.getElementById('pw-error');
+          var btn = document.getElementById('pw-submit');
+          pwError.style.display = 'none';
+          btn.disabled = true;
+          btn.textContent = 'Verificando...';
+
+          try {
+            var hash = await hashPassword(pw);
+            var verifyRes = await fetch(apiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({ action: 'verify_qr_password', code: code, password_hash: hash, user_agent: navigator.userAgent, referer: document.referrer || '', country: geoData.country, city: geoData.city, latitude: geoData.latitude, longitude: geoData.longitude })
+            });
+            var result = await verifyRes.json();
+
+            if (result.success && result.target_url) {
+              window.location.href = result.target_url;
+            } else {
+              if (result.error === 'wrong_password') {
+                pwError.textContent = 'Contraseña incorrecta';
+              } else if (result.error === 'expired') {
+                pwError.textContent = 'Este código QR ha expirado';
+              } else if (result.error === 'limit_reached') {
+                pwError.textContent = 'Límite de escaneos alcanzado';
+              } else {
+                pwError.textContent = 'Error de verificación';
+              }
+              pwError.style.display = 'block';
+              btn.disabled = false;
+              btn.textContent = 'Desbloquear';
+            }
+          } catch (err) {
+            pwError.textContent = 'Error de conexión';
+            pwError.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Desbloquear';
+          }
+        });
+      }
+
+      async function hashPassword(plain) {
+        var data = new TextEncoder().encode(plain);
+        var buf = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(buf))
+          .map(function (b) { return b.toString(16).padStart(2, '0'); })
+          .join('');
       }
 
       function showError(title, msg) {
